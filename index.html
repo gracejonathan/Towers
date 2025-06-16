@@ -310,43 +310,48 @@
         function buildTowers() {
             if (turn > maxTurns) return;
             
-            // Check if any saved dice can be played
-            let canPlay = false;
+            // Separate playable and unplayable dice
+            let playableDice = [];
+            let unplayableDice = [];
+            
             for (let die of savedDice) {
                 if (towers[die].length < 10 && !failedTowers.has(die)) {
-                    canPlay = true;
-                    break;
+                    playableDice.push(die);
+                } else {
+                    unplayableDice.push(die);
                 }
             }
             
-            if (!canPlay) {
-                showNotification("No saved dice can be played (towers full or failed)!");
+            // Must have at least one playable die to end turn
+            if (playableDice.length === 0) {
+                if (unplayableDice.length > 0) {
+                    showNotification("No saved dice can be played (towers full or failed)!");
+                } else {
+                    showNotification("You must save at least one die to build towers!");
+                }
                 return;
             }
             
-            let playable = [...savedDice];
-            let unplayedDice = [];
-            savedDice = [];
-            
-            for (let die of playable) {
-                let tower = die;
-                if (towers[tower].length < 10 && !failedTowers.has(tower)) {
-                    towers[tower].push(die);
-                } else {
-                    unplayedDice.push(die);
-                }
+            // Place only the playable dice
+            for (let die of playableDice) {
+                towers[die].push(die);
             }
+            
+            // Keep unplayable dice in saved dice (don't lose them)
+            savedDice = [...unplayableDice];
 
-            // Show notification for unplayed dice
-            if (unplayedDice.length > 0) {
+            // Show notification for unplayed dice if any
+            if (unplayableDice.length > 0) {
                 const unplayedCounts = {};
-                unplayedDice.forEach(die => {
+                unplayableDice.forEach(die => {
                     unplayedCounts[die] = (unplayedCounts[die] || 0) + 1;
                 });
                 const unplayedList = Object.entries(unplayedCounts)
                     .map(([die, count]) => `${count}×${die}`)
                     .join(", ");
                 showNotification(`Cannot place dice: ${unplayedList} (towers full/failed)`);
+            } else {
+                savedDice = []; // Clear saved dice only if all were played
             }
 
             // Check for tower failures (only started towers)
