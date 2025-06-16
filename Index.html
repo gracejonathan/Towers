@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Towers</title>
+    <style>
+        body { 
+            font-family: 'Arial', sans-serif; 
+            background-color: #121213; 
+            color: #d7dadc; 
+            text-align: center; 
+            margin: 0;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #ffffff; 
+            font-weight: 700;
+        }
+        .section { 
+            margin: 20px 0; 
+        }
+        .dice { 
+            display: inline-block; 
+            margin: 0; 
+            padding: 0; 
+            width: 36px; 
+            height: 36px; 
+            background: transparent; 
+            box-sizing: border-box; 
+            border: 2px solid #3a3a3c; 
+            cursor: pointer; 
+        }
+        .dice.rolling {
+            animation: rollDice 0.5s ease-in-out 2;
+            background: #2f2f31; 
+        }
+        .dice.selected {
+            border-color: #d7dadc; /* Highlight when clickable */
+        }
+        .dice.crumbling {
+            animation: crumble 1s ease-out forwards;
+        }
+        .dice.failed {
+            filter: grayscale(100%);
+            opacity: 0.5;
+            border-color: #555555; /* Darker grey border */
+        }
+        .level-complete { background-color: #D4A017; } /* Dusty Tan, unused now */
+        .level-1 { background-color: #D2B48C; } /* Tan */
+        .level-2 { background-color: #8B4513; } /* Brown */
+        .level-3 { background-color: #FFD700; } /* Gold */
+        .level-4 { background-color: #006400; } /* Green */
+        .level-5 { background-color: #FF0000; } /* Red */
+        .level-6 { background-color: #4682B4; } /* Blue */
+        .towers-container {
+            display: flex;
+            justify-content: center; 
+            gap: 10px; 
+            position: relative;
+            z-index: 2; /* Above blackout */
+        }
+        .tower-column {
+            display: flex;
+            flex-direction: column-reverse; /* Bottom-up growth */
+            gap: 0;
+            width: 36px;
+        }
+        .tower-column.completed-1 { border: 4px solid #D2B48C; border-radius: 8px; padding: 4px; }
+        .tower-column.completed-2 { border: 4px solid #8B4513; border-radius: 8px; padding: 4px; }
+        .tower-column.completed-3 { border: 4px solid #FFD700; border-radius: 8px; padding: 4px; }
+        .tower-column.completed-4 { border: 4px solid #006400; border-radius: 8px; padding: 4px; }
+        .tower-column.completed-5 { border: 4px solid #FF0000; border-radius: 8px; padding: 4px; }
+        .tower-column.completed-6 { border: 4px solid #4682B4; border-radius: 8px; padding: 4px; }
+        button { 
+            margin: 5px; 
+            padding: 10px 20px; 
+            cursor: pointer; 
+            background-color: #818384; 
+            border: none;
+            border-radius: 4px;
+            color: #ffffff;
+            font-weight: 700;
+            text-transform: uppercase; 
+            font-size: 14px;
+            transition: background-color 0.2s;
+            position: relative;
+        }
+        button:hover:not(:disabled) {
+            background-color: #565758; 
+        }
+        button:disabled { 
+            cursor: not-allowed; 
+            opacity: 0.5; 
+            background-color: #3a3a3c; 
+        }
+        #saved-dice {
+            margin: 10px auto; 
+            padding: 5px;
+            border: 2px solid #d7dadc; 
+            border-radius: 4px;
+            display: inline-block;
+            text-align: left;
+            min-width: 100px; 
+        }
+        .dropdown {
+            position: relative;
+            display: inline-block;
+            margin: 10px 0;
+            margin-left: -1000px; /* Moved 1000px left */
+        }
+        .dropdown-btn {
+            background-color: #818384;
+            color: #ffffff;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .dropdown-btn:hover {
+            background-color: #565758;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #2f2f31;
+            min-width: 300px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 4px;
+            text-align: left;
+            padding: 10px;
+        }
+        .dropdown-content p {
+            margin: 10px 0;
+            color: #d7dadc;
+        }
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+        #blackout {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            z-index: 1; /* Below towers */
+        }
+        .towers-outline {
+            border: 4px solid #000000; /* Black outline */
+            padding: 4px;
+            border-radius: 8px;
+        }
+        #final-score {
+            position: relative;
+            z-index: 2; /* Above blackout */
+            margin-top: 20px;
+            font-size: 24px;
+            color: #ffffff;
+        }
+        #notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 0, 0, 0.8);
+            color: #ffffff;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 18px;
+            z-index: 3;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        #restart-btn, #share-btn {
+            display: none; /* Hidden until game ends */
+            position: relative;
+            z-index: 2; /* Above blackout */
+            margin-top: 10px;
+        }
+        @keyframes rollDice {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(10deg) scale(1.1); }
+            50% { transform: rotate(0deg) scale(1); }
+            75% { transform: rotate(-10deg) scale(1.1); }
+            100% { transform: rotate(0deg) scale(1); }
+        }
+        @keyframes crumble {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            50% { transform: translateY(50px) rotate(15deg); opacity: 0.5; }
+            100% { transform: translateY(100px) rotate(30deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Towers</h1>
+    <div class="dropdown">
+        <button class="dropdown-btn">Help</button>
+        <div class="dropdown-content">
+            <h3>How to Play</h3>
+            <p>Each turn, roll 6 dice. Click to save dice, reroll the rest once, then place saved dice into their towers (1-6). Started towers need dice equal to or greater than the turn number to survive, or they fail (-5 points). After 6 turns, towers with 10 dice score +10 points!</p>
+            <h3>Rules</h3>
+            <p>- <b>Save Dice</b>: Click dice in Current Roll to save; click saved dice to un-save.<br>
+               - <b>Reroll</b>: Reroll unsaved dice once per turn.<br>
+               - <b>Build Towers</b>: Place saved dice in matching towers (e.g., 3s in Tower 3, up to 10 dice).<br>
+               - <b>Turn End</b>: Towers with dice but fewer than the turn number fail (-5 points) and lock; unplayed towers (0 dice) remain safe.<br>
+               - <b>Game End</b>: After 6 turns, each tower with 10 dice earns +10 points.</p>
+            <h3>Scoring</h3>
+            <p>Score = (failed towers × -5) + (towers with 10 dice × 10). Maximize your score over 6 turns!</p>
+        </div>
+    </div>
+    <div class="section" id="turn-info">Turn: 1 / 6</div>
+    
+    <div class="section">
+        <h2>Saved Dice</h2>
+        <div id="saved-dice"></div>
+        <h2>Current Roll</h2>
+        <div id="current-roll"></div>
+        <button id="reroll-btn" onclick="rerollDice()" title="Reroll unsaved dice (once per turn)" disabled>Reroll Dice</button>
+        <button id="build-btn" onclick="buildTowers()" title="Place saved dice in towers and end the turn" disabled>Build Towers</button>
+    </div>
+
+    <div class="section">
+        <h2>Towers</h2>
+        <div class="towers-container" id="towers"></div>
+        <div id="final-score"></div>
+        <button id="restart-btn" onclick="resetGame()">Restart</button>
+        <button id="share-btn" onclick="shareResults()">Share</button>
+    </div>
+
+    <div class="section">
+        <h2>Score: <span id="score">0</span></h2>
+    </div>
+
+    <div id="blackout"></div>
+    <div id="notification"></div>
+
+    <script>
+        let turn = 1;
+        const maxTurns = 6;
+        let currentRoll = [];
+        let savedDice = [];
+        let towers = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+        let failedTowers = new Set();
+        let hasRerolled = false;
+
+        const diceSVGs = {
+            empty: `<svg width="36" height="36"><rect x="1" y="1" width="34" height="34" fill="transparent" stroke="#3a3a3c" stroke-width="2"/></svg>`,
+            bw1: `<svg width="36" height="36"><rect x="1" y="1" width="34" height="34" fill="#000000" stroke="#3a3a3c" stroke-width="2"/><circle cx="18" cy="18" r="5" fill="white"/></svg>`,
+            bw2: `<svg width="36" height="36"><rect x="1" y="1" width="34" height="34" fill="#000000" stroke="#3a3a3c" stroke-width="2"/><circle cx="11" cy="11" r="5" fill="white"/><circle cx="25" cy="25" r="5" fill="white"/></svg>`,
+            bw3: `<svg width="36" height="36"><rect x="1" y="1" width="34" height="34" fill="#000000" stroke="#3a3a3c" stroke-width="2"/><circle cx="11" cy="11" r="5" fill="white"/><circle cx="18" cy="18" r="5" fill="white"/><circle cx="25" cy="25" r="5" fill="white"/></svg>`,
+            bw4: `<svg width="36" height="36"><rect x="1" y="1" width="34" height="34" fill="#000000" stroke="#3a3a3c" stroke-width="2"/><circle cx="11" cy="11" r="5" fill="white"/><circle cx="25" cy="11" r="5" fill="white"/><circle cx="11" cy="25" r="5" fill="white"/><circle cx="25" cy="25" r="5" fill="white"/></svg>`,
+            bw5: `<svg width="36" height="36"><rect x="1" y="1" width="34" height="34" fill="#000000" stroke="#3a3a3c" stroke-width="2"/><circle cx="11" cy="11" r="5" fill="white"/><circle cx="25" cy="11" r="5" fill="white"/><circle cx="18" cy="18" r="5" fill="white"/><circle cx="11" cy="25" r="5" fill="white"/><circle cx="25" cy="25" r="5" fill="white"/></svg>`,
+            bw6: `<svg width="36" height="36"><rect x="1" y="1" width="34" height="34" fill="#000000" stroke="#3a3a3c" stroke-width="2"/><circle cx="11" cy="8" r="5" fill="white"/><circle cx="11" cy="18" r="5" fill="white"/><circle cx="11" cy="28" r="5" fill="white"/><circle cx="25" cy="8" r="5" fill="white"/><circle cx="25" cy="18" r="5" fill="white"/><circle cx="25" cy="28" r="5" fill="white"/></svg>`,
+            1: `<svg width="36" height="36"><rect x="1" y="1" width="34" height="34" fill="transparent" stroke="#3a3a3c" stroke-width="2"/><circle cx="18" cy="18" r="5" fill="white"/></svg>`,
+            2: `<svg width="36" height="36"><rect x="1" y="1" width="34" height="34" fill="transparent" stroke="#3a3a3c" stroke-width="2"/><circle cx="11" cy="11" r="5" fill="white"/><circle cx="25" cy="25" r="5" fill="white"/></svg>`,
+            3: `<svg width="36" height="36"><rect x="1" y="1" width="34" height="34" fill="transparent" stroke="#3a3a3c" stroke-width="2"/><circle cx="11" cy="11" r="5" fill="white"/><circle cx="18" cy="18" r="5" fill="white"/><circle cx="25" cy="25" r="5" fill="white"/></svg>`,
+            4: `<svg width="36" height="36"><rect x="1" y="1" width="34" height="34" fill="transparent" stroke="#3a3a3c" stroke-width="2"/><circle cx="11" cy="11" r="5" fill="white"/><circle cx="25" cy="11" r="5" fill="white"/><circle cx="11" cy="25" r="5" fill="white"/><circle cx="25" cy="25" r="5" fill="white"/></svg>`,
+            5: `<svg width="36" height="36"><rect x="1" y="1" width="34" height="34" fill="transparent" stroke="#3a3a3c" stroke-width="2"/><circle cx="11" cy="11" r="5" fill="white"/><circle cx="25" cy="11" r="5" fill="white"/><circle cx="18" cy="18" r="5" fill="white"/><circle cx="11" cy="25" r="5" fill="white"/><circle cx="25" cy="25" r="5" fill="white"/></svg>`,
+            6: `<svg width="36" height="36"><rect x="1" y="1" width="34" height="34" fill="transparent" stroke="#3a3a3c" stroke-width="2"/><circle cx="11" cy="8" r="5" fill="white"/><circle cx="11" cy="18" r="5" fill="white"/><circle cx="11" cy="28" r="5" fill="white"/><circle cx="25" cy="8" r="5" fill="white"/><circle cx="25" cy="18" r="5" fill="white"/><circle cx="25" cy="28" r="5" fill="white"/></svg>`,
+            solid: `<svg width="36" height="36"><rect x="1" y="1" width="34" height="34" fill="#D4A017" stroke="#3a3a3c" stroke-width="2"/></svg>` // Solid block, unused now
+        };
+
+        function startTurn() {
+            if (turn > maxTurns) {
+                endGame();
+                return;
+            }
+            currentRoll = Array(6).fill(0).map(() => Math.floor(Math.random() * 6) + 1);
+            savedDice = [];
+            hasRerolled = false;
+            const rollDiv = document.getElementById("current-roll");
+            rollDiv.innerHTML = Array(6).fill().map(() => `<span class="dice rolling">${diceSVGs.empty}</span>`).join("");
+            setTimeout(() => {
+                updateDisplay();
+                toggleButtons(true);
+            }, 1000);
+        }
+
+        function toggleDice(index, fromSaved = false) {
+            if (fromSaved) {
+                if (index < 0 || index >= savedDice.length) return;
+                const die = savedDice[index];
+                savedDice.splice(index, 1);
+                currentRoll.push(die);
+            } else {
+                if (index < 0 || index >= currentRoll.length) return;
+                const die = currentRoll[index];
+                currentRoll.splice(index, 1);
+                savedDice.push(die);
+            }
+            updateDisplay();
+        }
+
+        function rerollDice() {
+            if (turn > maxTurns || hasRerolled) return;
+            hasRerolled = true;
+            const rollDiv = document.getElementById("current-roll");
+            rollDiv.innerHTML = currentRoll.map(() => `<span class="dice rolling">${diceSVGs.empty}</span>`).join("");
+            setTimeout(() => {
+                currentRoll = currentRoll.map(() => Math.floor(Math.random() * 6) + 1);
+                updateDisplay();
+                toggleButtons(true);
+            }, 1000);
+        }
+
+        function buildTowers() {
+            if (turn > maxTurns) return;
+            let playable = [...savedDice];
+            savedDice = [];
+            
+            for (let die of playable) {
+                let tower = die;
+                if (towers[tower].length < 10 && !failedTowers.has(tower)) {
+                    towers[tower].push(die);
+                }
+            }
+
+            // Check for tower failures (only started towers)
+            for (let tower = 1; tower <= 6; tower++) {
+                if (towers[tower].length > 0 && towers[tower].length < turn && !failedTowers.has(tower)) {
+                    failedTowers.add(tower);
+                    animateCrumble(tower);
+                    showNotification(`-5 Points: Tower ${tower} Failed`);
+                }
+            }
+
+            currentRoll = [];
+            turn++;
+            hasRerolled = false;
+            setTimeout(() => {
+                updateDisplay();
+                toggleButtons(false);
+                if (turn <= maxTurns) startTurn();
+                else endGame();
+            }, 1000); // Delay to allow crumble animation
+        }
+
+        function animateCrumble(tower) {
+            const towerDivs = document.querySelectorAll(`#towers .tower-column:nth-child(${tower}) .dice`);
+            towerDivs.forEach(die => {
+                die.classList.add("crumbling");
+                setTimeout(() => {
+                    die.classList.remove("crumbling");
+                    die.classList.add("failed");
+                }, 1000); // Apply failed styling after animation
+            });
+        }
+
+        function showNotification(message) {
+            const notification = document.getElementById("notification");
+            notification.textContent = message;
+            notification.style.opacity = 1;
+            setTimeout(() => {
+                notification.style.opacity = 0;
+            }, 2000); // Fade out after 2 seconds
+        }
+
+        function calculateScore() {
+            let score = 0;
+            const failedCount = failedTowers.size;
+            score -= failedCount * 5; // -5 per failed tower
+            let completedCount = 0;
+            for (let tower in towers) {
+                if (towers[tower].length === 10) {
+                    completedCount++;
+                    score += 10; // +10 per completed tower
+                }
+            }
+            return { score, failedCount, completedCount };
+        }
+
+        function endGame() {
+            const { score, failedCount, completedCount } = calculateScore();
+            document.getElementById("score").textContent = score;
+            document.getElementById("final-score").innerHTML = `Final Score: ${score}<br><small>+10 for each completed tower (${completedCount}), -5 for each failed tower (${failedCount})</small>`;
+
+            // Blackout the screen
+            document.getElementById("blackout").style.display = "block";
+
+            // Transform the towers
+            let towersHTML = "";
+            for (let tower = 1; tower <= 6; tower++) {
+                let diceInTower = towers[tower];
+                let towerHTML = "";
+                for (let i = 0; i < 10; i++) {
+                    if (i < diceInTower.length) {
+                        const failedClass = failedTowers.has(tower) ? " failed" : "";
+                        towerHTML += `<span class="dice level-${tower}${failedClass}">${diceSVGs[diceInTower[i]]}</span>`;
+                    } else {
+                        towerHTML += `<span class="dice" style="visibility: hidden;">${diceSVGs.empty}</span>`;
+                    }
+                }
+                const completedClass = (diceInTower.length === 10 && !failedTowers.has(tower)) ? ` completed-${tower}` : "";
+                towersHTML += `<div class="tower-column${completedClass}">${towerHTML}</div>`;
+            }
+            const towersDiv = document.getElementById("towers");
+            towersDiv.innerHTML = towersHTML;
+            towersDiv.classList.add("towers-outline");
+
+            // Show the restart and share buttons
+            document.getElementById("restart-btn").style.display = "inline-block";
+            document.getElementById("share-btn").style.display = "inline-block";
+        }
+
+        function shareResults() {
+            const { score } = calculateScore();
+            let shareText = `Towers\nScore: ${score}\n\n`;
+            
+            // Build a vertical towers representation (10 levels tall, 6 columns wide)
+            for (let level = 9; level >= 0; level--) {
+                let row = "";
+                for (let tower = 1; tower <= 6; tower++) {
+                    row += towers[tower].length > level ? "🟨" : " ";
+                    if (tower < 6) row += " "; // Space between towers
+                }
+                shareText += row + "\n";
+            }
+            shareText += "\nPlay Towers: [your-link-here]"; // Replace with actual URL
+
+            // Copy to clipboard
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(shareText).then(() => {
+                    alert("Results copied to clipboard!");
+                }).catch(() => {
+                    alert("Failed to copy. Here’s your result:\n\n" + shareText);
+                });
+            } else {
+                alert("Clipboard not supported. Here’s your result:\n\n" + shareText);
+            }
+        }
+
+        function resetGame() {
+            turn = 1;
+            currentRoll = [];
+            savedDice = [];
+            towers = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+            failedTowers = new Set();
+            hasRerolled = false;
+            document.getElementById("score").textContent = "0";
+            document.getElementById("final-score").textContent = "";
+            document.getElementById("blackout").style.display = "none";
+            document.getElementById("towers").classList.remove("towers-outline");
+            document.getElementById("restart-btn").style.display = "none";
+            document.getElementById("share-btn").style.display = "none";
+            updateDisplay();
+            startTurn();
+        }
+
+        function updateDisplay() {
+            document.getElementById("turn-info").textContent = `Turn: ${turn} / ${maxTurns}`;
+            document.getElementById("saved-dice").innerHTML = savedDice.length > 0 
+                ? savedDice.map((d, i) => `<span class="dice selected" onclick="toggleDice(${i}, true)">${diceSVGs['bw' + d]}</span>`).join("") 
+                : "None";
+            document.getElementById("current-roll").innerHTML = currentRoll.length > 0 
+                ? currentRoll.map((d, i) => `<span class="dice selected" onclick="toggleDice(${i})">${diceSVGs['bw' + d]}</span>`).join("") 
+                : "No dice";
+
+            if (turn <= maxTurns) {
+                let towersHTML = "";
+                for (let tower = 1; tower <= 6; tower++) {
+                    let diceInTower = towers[tower];
+                    let towerHTML = "";
+                    for (let i = 0; i < 10; i++) {
+                        if (i < diceInTower.length) {
+                            const failedClass = failedTowers.has(tower) ? " failed" : "";
+                            towerHTML += `<span class="dice level-${tower}${failedClass}">${diceSVGs[diceInTower[i]]}</span>`;
+                        } else {
+                            towerHTML += `<span class="dice">${diceSVGs.empty}</span>`;
+                        }
+                    }
+                    const completedClass = diceInTower.length === 10 && !failedTowers.has(tower) ? ` completed-${tower}` : "";
+                    towersHTML += `<div class="tower-column${completedClass}">${towerHTML}</div>`;
+                }
+                document.getElementById("towers").innerHTML = towersHTML;
+            }
+
+            document.getElementById("score").textContent = calculateScore().score;
+            if (turn > maxTurns) {
+                document.getElementById("reroll-btn").disabled = true;
+                document.getElementById("build-btn").disabled = true;
+            }
+        }
+
+        function toggleButtons(enable) {
+            document.getElementById("reroll-btn").disabled = !enable || currentRoll.length === 0 || hasRerolled;
+            document.getElementById("build-btn").disabled = !enable;
+        }
+
+        // Start the game
+        startTurn();
+    </script>
+</body>
+</html>
