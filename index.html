@@ -280,7 +280,6 @@
             rollDiv.innerHTML = Array(6).fill().map(() => `<span class="dice rolling">${diceSVGs.empty}</span>`).join("");
             setTimeout(() => {
                 updateDisplay();
-                toggleButtons(true);
             }, 1000);
         }
 
@@ -307,7 +306,6 @@
             setTimeout(() => {
                 currentRoll = currentRoll.map(() => Math.floor(Math.random() * 6) + 1);
                 updateDisplay();
-                toggleButtons(true);
             }, 1000);
         }
 
@@ -378,7 +376,6 @@
             hasRerolled = false;
             setTimeout(() => {
                 updateDisplay();
-                toggleButtons(false);
                 if (turn <= maxTurns) startTurn();
                 else endGame();
             }, 1000); // Delay to allow crumble animation
@@ -535,19 +532,24 @@
             }
 
             document.getElementById("score").textContent = calculateScore().score;
+            
+            // Update button states - this is the key fix!
+            updateButtonStates();
+        }
+
+        function updateButtonStates() {
             if (turn > maxTurns) {
                 document.getElementById("reroll-btn").disabled = true;
                 document.getElementById("build-btn").disabled = true;
+                return;
             }
-        }
 
-        function toggleButtons(enable) {
             // Reroll button: enabled if there are current roll dice and haven't rerolled yet
-            document.getElementById("reroll-btn").disabled = !enable || currentRoll.length === 0 || hasRerolled;
+            document.getElementById("reroll-btn").disabled = currentRoll.length === 0 || hasRerolled;
             
             // Build button: enabled only if there's at least one playable saved die
             const playableDice = getPlayableDice();
-            document.getElementById("build-btn").disabled = !enable || playableDice.length === 0;
+            document.getElementById("build-btn").disabled = playableDice.length === 0;
         }
 
         // Start the game
