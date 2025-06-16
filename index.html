@@ -307,7 +307,7 @@
             }, 1000);
         }
 
-        function buildTowers() {
+       function buildTowers() {
             if (turn > maxTurns) return;
             
             // Separate playable and unplayable dice
@@ -362,6 +362,17 @@
                     showNotification(`-5 Points: Tower ${tower} Failed`);
                 }
             }
+
+            currentRoll = [];
+            turn++;
+            hasRerolled = false;
+            setTimeout(() => {
+                updateDisplay();
+                toggleButtons(false);
+                if (turn <= maxTurns) startTurn();
+                else endGame();
+            }, 1000); // Delay to allow crumble animation
+        }
 
             currentRoll = [];
             turn++;
