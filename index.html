@@ -46,6 +46,10 @@
             opacity: 0.5;
             border-color: #555555; /* Darker grey border */
         }
+        .dice.unplayable {
+            border-color: #ff6b6b; /* Red border for unplayable dice */
+            opacity: 0.7;
+        }
         .level-complete { background-color: #D4A017; } /* Dusty Tan, unused now */
         .level-1 { background-color: #D2B48C; } /* Tan */
         .level-2 { background-color: #8B4513; } /* Brown */
@@ -307,7 +311,15 @@
             }, 1000);
         }
 
-       function buildTowers() {
+        function isDicePlayable(die) {
+            return towers[die].length < 10 && !failedTowers.has(die);
+        }
+
+        function getPlayableDice() {
+            return savedDice.filter(die => isDicePlayable(die));
+        }
+
+        function buildTowers() {
             if (turn > maxTurns) return;
             
             // Separate playable and unplayable dice
@@ -315,7 +327,7 @@
             let unplayableDice = [];
             
             for (let die of savedDice) {
-                if (towers[die].length < 10 && !failedTowers.has(die)) {
+                if (isDicePlayable(die)) {
                     playableDice.push(die);
                 } else {
                     unplayableDice.push(die);
@@ -337,9 +349,6 @@
                 towers[die].push(die);
             }
             
-            // Keep unplayable dice in saved dice (don't lose them)
-            savedDice = [...unplayableDice];
-
             // Show notification for unplayed dice if any
             if (unplayableDice.length > 0) {
                 const unplayedCounts = {};
@@ -350,9 +359,10 @@
                     .map(([die, count]) => `${count}×${die}`)
                     .join(", ");
                 showNotification(`Cannot place dice: ${unplayedList} (towers full/failed)`);
-            } else {
-                savedDice = []; // Clear saved dice only if all were played
             }
+
+            // Clear ALL saved dice (both playable and unplayable) - they're either placed or discarded
+            savedDice = [];
 
             // Check for tower failures (only started towers)
             for (let tower = 1; tower <= 6; tower++) {
@@ -362,17 +372,6 @@
                     showNotification(`-5 Points: Tower ${tower} Failed`);
                 }
             }
-
-            currentRoll = [];
-            turn++;
-            hasRerolled = false;
-            setTimeout(() => {
-                updateDisplay();
-                toggleButtons(false);
-                if (turn <= maxTurns) startTurn();
-                else endGame();
-            }, 1000); // Delay to allow crumble animation
-        }
 
             currentRoll = [];
             turn++;
@@ -472,10 +471,10 @@
                 navigator.clipboard.writeText(shareText).then(() => {
                     alert("Results copied to clipboard!");
                 }).catch(() => {
-                    alert("Failed to copy. Here’s your result:\n\n" + shareText);
+                    alert("Failed to copy. Here's your result:\n\n" + shareText);
                 });
             } else {
-                alert("Clipboard not supported. Here’s your result:\n\n" + shareText);
+                alert("Clipboard not supported. Here's your result:\n\n" + shareText);
             }
         }
 
@@ -498,11 +497,22 @@
 
         function updateDisplay() {
             document.getElementById("turn-info").textContent = `Turn: ${turn} / ${maxTurns}`;
-            document.getElementById("saved-dice").innerHTML = savedDice.length > 0 
-                ? savedDice.map((d, i) => `<span class="dice selected" onclick="toggleDice(${i}, true)">${diceSVGs['bw' + d]}</span>`).join("") 
-                : "None";
+            
+            // Display saved dice with visual indication of playability
+            if (savedDice.length > 0) {
+                const savedHTML = savedDice.map((d, i) => {
+                    const playable = isDicePlayable(d);
+                    const classes = playable ? "dice selected" : "dice selected unplayable";
+                    const title = playable ? "Click to un-save" : "Cannot be played (tower full or failed)";
+                    return `<span class="${classes}" onclick="toggleDice(${i}, true)" title="${title}">${diceSVGs['bw' + d]}</span>`;
+                }).join("");
+                document.getElementById("saved-dice").innerHTML = savedHTML;
+            } else {
+                document.getElementById("saved-dice").innerHTML = "None";
+            }
+            
             document.getElementById("current-roll").innerHTML = currentRoll.length > 0 
-                ? currentRoll.map((d, i) => `<span class="dice selected" onclick="toggleDice(${i})">${diceSVGs['bw' + d]}</span>`).join("") 
+                ? currentRoll.map((d, i) => `<span class="dice selected" onclick="toggleDice(${i})" title="Click to save">${diceSVGs['bw' + d]}</span>`).join("") 
                 : "No dice";
 
             if (turn <= maxTurns) {
@@ -532,8 +542,12 @@
         }
 
         function toggleButtons(enable) {
+            // Reroll button: enabled if there are current roll dice and haven't rerolled yet
             document.getElementById("reroll-btn").disabled = !enable || currentRoll.length === 0 || hasRerolled;
-            document.getElementById("build-btn").disabled = !enable;
+            
+            // Build button: enabled only if there's at least one playable saved die
+            const playableDice = getPlayableDice();
+            document.getElementById("build-btn").disabled = !enable || playableDice.length === 0;
         }
 
         // Start the game
