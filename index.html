@@ -205,7 +205,7 @@
             <h3>Rules</h3>
             <p>- <b>Save Dice</b>: Click dice in Current Roll to save; click saved dice to un-save.<br>
                - <b>Reroll</b>: Reroll unsaved dice once per turn.<br>
-               - <b>Build Towers</b>: Place saved dice in matching towers (e.g., 3s in Tower 3, up to 10 dice).<br>
+               - <b>Build Towers</b>: Each turn place at least one saved dice in matching towers (e.g., 3s in Tower 3, up to 10 dice).<br>
                - <b>Turn End</b>: Towers with dice but fewer than the turn number fail (-5 points) and lock; unplayed towers (0 dice) remain safe.<br>
                - <b>Game End</b>: After 6 turns, each tower with 10 dice earns +10 points.</p>
             <h3>Scoring</h3>
@@ -309,6 +309,13 @@
 
         function buildTowers() {
             if (turn > maxTurns) return;
+            
+            // Check if player has at least one saved die
+            if (savedDice.length === 0) {
+                showNotification("You must save at least one die to build towers!");
+                return;
+            }
+            
             let playable = [...savedDice];
             savedDice = [];
             
